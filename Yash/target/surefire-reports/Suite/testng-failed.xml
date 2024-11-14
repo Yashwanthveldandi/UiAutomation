@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite verbose="0" name="Failed suite [Suite]">
+  <test name="test(failed)">
+    <classes>
+      <class name="Test.Test1">
+        <methods>
+          <include name="endDriverProcess"/>
+          <include name="closeDriver"/>
+          <include name="beforeSuite"/>
+          <include name="generateReport"/>
+          <include name="beforeMethod"/>
+          <include name="firstTest"/>
+        </methods>
+      </class> <!-- Test.Test1 -->
+    </classes>
+  </test> <!-- test(failed) -->
+</suite> <!-- Failed suite [Suite] -->

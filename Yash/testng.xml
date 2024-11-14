@@ -1,0 +1,7 @@
+<suite name="Suite">
+	<test thread-count="2" name="test">
+		<classes>
+			<class name="Test.Test1" />
+		</classes>
+	</test>
+</suite>

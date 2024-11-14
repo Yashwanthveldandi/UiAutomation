@@ -1,0 +1,598 @@
+back up Core class
+
+package com.base;
+
+import com.aventstack.extentreports.ExtentReporter;
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.MediaEntityBuilder;
+import com.aventstack.extentreports.Status;
+import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import java.awt.Desktop;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.openqa.selenium.By;
+import org.openqa.selenium.ElementNotInteractableException;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.io.FileHandler;
+import org.openqa.selenium.safari.SafariDriver;
+import org.openqa.selenium.support.ui.Select;
+import org.testng.Assert;
+import org.testng.ITestResult;
+import org.testng.Reporter;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
+
+public class Core {
+  static ExtentHtmlReporter htmlReporter = null;
+  
+  public static ExtentReports extent = null;
+  
+  public static ExtentTest test = null;
+  
+  public static String reportPath = null;
+  
+  public static boolean startTest = false;
+  
+  public static boolean viewProgress = false;
+  
+  public static Connection con = null;
+  
+  public static WebDriver driver;
+  
+  static String key = "Bar12345Bar12345";
+  
+  static String initVector = "RandomInitVector";
+  
+  @BeforeSuite
+  public static void beforeSuite() {
+    resetProgress();
+  }
+  
+  @AfterSuite
+  public static void endDriverProcess() {
+    if (Common.readProperty("./src/main/resources/config.properties", "driverCleanup").equals("true"))
+      try {
+        Runtime.getRuntime().exec("TASKKILL /F /IM chromedriver.exe");
+      } catch (Exception exception) {} 
+    if (Common.readProperty("./src/main/resources/progress.properties", "reportOpen").equals("true")) {
+      Desktop desktop = Desktop.getDesktop();
+      File file = new File(reportPath);
+      if (file.exists())
+        try {
+          desktop.open(file);
+        } catch (IOException iOException) {} 
+    } 
+  }
+  
+  public static void openDriver() {
+    String str;
+    switch ((str = Common.readProperty("browser")).hashCode()) {
+      case -1361128838:
+        if (str.equals("chrome")) {
+          System.setProperty("webdriver.chrome.driver", "./drivers/chromedriver.exe");
+          ChromeOptions options = new ChromeOptions();
+          options.addArguments(new String[] { "--ignore-certificate-errors" });
+          driver = (WebDriver)new ChromeDriver(options);
+          extent.setSystemInfo("Browser", "Chrome");
+          extent.setSystemInfo("Author", "Yashwanth V");
+          break;
+        } 
+      case -909897856:
+        if (str.equals("safari")) {
+          driver = (WebDriver)new SafariDriver();
+          extent.setSystemInfo("Browser", "Safari");
+          extent.setSystemInfo("Author", "Yashwanth V");
+          break;
+        } 
+      case -849452327:
+        if (str.equals("firefox")) {
+          driver = (WebDriver)new FirefoxDriver();
+          extent.setSystemInfo("Browser", "Firefox");
+          extent.setSystemInfo("Author", "Yashwanth V");
+          break;
+        } 
+      case -554494698:
+        if (str.equals("phantomjs")) {
+          extent.setSystemInfo("Browser", "PhantomJS");
+          extent.setSystemInfo("Author", "Yashwanth V");
+          break;
+        } 
+      case 3108285:
+        if (str.equals("edge")) {
+          extent.setSystemInfo("Browser", "Edge");
+          extent.setSystemInfo("Author", "Yashwanth V");
+          System.setProperty("webdriver.edge.driver", "./drivers/msedgedriver.exe");
+          driver = (WebDriver)new EdgeDriver();
+          break;
+        } 
+      default:
+        Assert.fail("No Browser is defined");
+        break;
+    } 
+    driver.manage().window().maximize();
+    driver.manage().timeouts().implicitlyWait(5L, TimeUnit.SECONDS);
+  }
+  
+  public static void navigateURL(String url) {
+    driver.get(url);
+    logReport(Status.PASS, "Navigated to the URL [" + url + "]", true, driver, true);
+  }
+  
+  public static void createReport() {
+    reportPath = String.valueOf(String.valueOf(System.getProperty("user.dir"))) + "/reports/ExecutionReport_" + getCurrentDateTime()
+      .replace("/", "_").replace(":", "_").replace("[", "").replace("] ", "").replace(" ", "_");
+    (new File(reportPath)).mkdir();
+    (new File(String.valueOf(String.valueOf(reportPath)) + "/screenshots")).mkdir();
+    (new File(String.valueOf(String.valueOf(reportPath)) + "/files")).mkdir();
+    (new File(String.valueOf(String.valueOf(reportPath)) + "/files/xmls")).mkdir();
+    htmlReporter = new ExtentHtmlReporter(String.valueOf(String.valueOf(reportPath)) + "/extent.html");
+    extent = new ExtentReports();
+    extent.attachReporter(new ExtentReporter[] { (ExtentReporter)htmlReporter });
+  }
+  
+  public static void endOfTest(ITestResult result, WebDriver driver) {
+    if (result.getStatus() == 2) {
+      addOneForProgress("fail");
+      System.out.println(String.valueOf(String.valueOf(getCurrentDateTime())) + "Test Failed: " + result.getThrowable());
+      try {
+        test.fail("Test Failed: " + result.getThrowable(), 
+            MediaEntityBuilder.createScreenCaptureFromPath(takeScreenshot(driver)).build());
+      } catch (IOException e) {
+        test.log(Status.FAIL, "Test Failed: " + result.getThrowable());
+        e.printStackTrace();
+      } 
+    } else if (result.getStatus() == 3) {
+      addOneForProgress("skip");
+      System.out.println(String.valueOf(String.valueOf(getCurrentDateTime())) + "Test Skipped: " + result.getThrowable());
+      test.log(Status.SKIP, "Test Case skipped");
+    } else {
+      addOneForProgress("pass");
+      System.out.println(String.valueOf(String.valueOf(getCurrentDateTime())) + "Test Completed");
+      test.log(Status.PASS, "Test Case Completed");
+    } 
+    addOneForProgress("iterationComplete");
+    extent.flush();
+    htmlReader();
+  }
+  
+  private static String takeScreenshot(WebDriver driver) {
+    String screenShotName = 
+      String.valueOf(String.valueOf(getCurrentDateTime().replace("/", "_").replace(":", "_").replace("[", "").replace("] ", "").replace(" ", "_"))) + UUID.randomUUID().toString();
+    String path = String.valueOf(String.valueOf(reportPath)) + "/screenshots/" + screenShotName + ".jpeg";
+    String retPath = "./screenshots/" + screenShotName + ".jpeg";
+    try {
+      if (Common.readProperty("browser").equals("phantomjs"))
+        ((JavascriptExecutor)driver).executeScript(
+            "(function() {var style = document.createElement('style'), text = document.createTextNode('body { background: #fff }'); style.setAttribute('type', 'text/css'); style.appendChild(text); document.head.insertBefore(style, document.head.firstChild);})();", new Object[0]); 
+      File f = (File)((TakesScreenshot)driver).getScreenshotAs(OutputType.FILE);
+      try {
+        FileHandler.copy(f, new File(path));
+      } catch (IOException e) {
+        e.printStackTrace();
+      } 
+    } catch (Exception e) {
+      test.log(Status.SKIP, "Can not take screenshot: " + e);
+    } 
+    return retPath;
+  }
+  
+  public static void copyFileAndAttachToReport(String sourcePath, String destPath) {
+    String destinationPath = String.valueOf(String.valueOf(reportPath)) + "/files/" + destPath + "/";
+    String reportWritePath = "./files/" + destPath + "/";
+    String[] temp1 = sourcePath.split("/");
+    String fileNameBefore = temp1[temp1.length - 1];
+    try {
+      String[] temp = sourcePath.split("/");
+      String fileName = temp[temp.length - 1];
+      String extention = fileName.split("\\.")[1];
+      fileName = String.valueOf(String.valueOf(fileName.split("\\.")[0])) + "_" + UUID.randomUUID().toString().replace("-", "") + "." + extention;
+      reportWritePath = String.valueOf(String.valueOf(reportWritePath)) + fileName;
+      File source = new File(sourcePath);
+      File dest = new File(String.valueOf(String.valueOf(destinationPath)) + fileName);
+      FileHandler.copy(source, dest);
+    } catch (IOException e) {
+      e.printStackTrace();
+    } 
+    String message = "<a href=\"" + reportWritePath + "\">" + fileNameBefore + "</a></span>";
+    logReport(Status.INFO, message, false, null, false);
+  }
+  
+  public static void logReport(Status status, String message, boolean takeScreenshot, WebDriver driver, boolean displayConsole) {
+    if (takeScreenshot) {
+      try {
+        test.log(status, message, 
+            MediaEntityBuilder.createScreenCaptureFromPath(takeScreenshot(driver)).build());
+      } catch (IOException e) {
+        test.log(status, "Unable to capture screenshot. Logging Provided information: " + message);
+      } 
+    } else {
+      test.log(status, message);
+    } 
+    if (displayConsole) {
+      message = message.replace(
+          "<span onclick=\"$(this).next().toggle();\">Show/Hide Stacktrace</span><p style=\"display: none;\">", 
+          "");
+      System.out.println(String.valueOf(String.valueOf(getCurrentDateTime())) + message);
+    } 
+  }
+  
+  public static void logHiddenText(Status status, String Message, String hiddenText) {
+    String before = String.valueOf(String.valueOf(Message)) + 
+      "<br><span onclick=\"$(this).next().toggle();\">Click here to Show/Hide Details</span><p style=\"display: none;\">";
+    String textToLog = String.valueOf(String.valueOf(before)) + hiddenText + "</p>";
+    test.log(status, textToLog);
+  }
+  
+  public static void generateReports(String testCase) {
+    test = extent.createTest(testCase.toString());
+  }
+  
+  public static String getCurrentDateTime() {
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+    LocalDateTime now = LocalDateTime.now();
+    return "[" + dtf.format(now) + "] ";
+  }
+  
+  private static void resetProgress() {
+    Common.writeProperty("./src/main/resources/progress.properties", "iterationComplete", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "iterationAll", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "overallComplete", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "overallAll", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "pass", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "fail", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "skip", "0");
+    Common.writeProperty("./src/main/resources/progress.properties", "reportOpen", "false");
+  }
+  
+  private static void addOneForProgress(String property) {
+    Common.writeProperty("./src/main/resources/progress.properties", property, Integer.toString(
+          1 + Integer.parseInt(Common.readProperty("./src/main/resources/progress.properties", property))));
+  }
+  
+  public static void htmlReader() {
+    String[] failedCount = null;
+    String[] passedCount = null;
+    String endtDateTime = null;
+    String startDateTime = null;
+    try {
+      File filePath = new File(String.valueOf(String.valueOf(Core.reportPath)) + "\\extent.html");
+      Document document = Jsoup.parse(filePath, "UTF-8");
+      Elements divs = document.select("div");
+      for (Element div : divs) {
+        String fail = div.ownText();
+        if (fail.contains("test(s) failed")) {
+          String failed = div.text();
+          failedCount = failed.split(" ");
+          System.out.println("FailedCount:" + failedCount[0]);
+          break;
+        } 
+      } 
+      Elements spans = document.select("span");
+      for (Element span : spans) {
+        String pass = span.ownText();
+        if (pass.contains("test(s) passed")) {
+          String passed = span.text();
+          passedCount = passed.split(" ");
+          System.out.println("Passed Count:" + passedCount[0]);
+          break;
+        } 
+      } 
+      Elements startdivs = document.select("div");
+      for (Element div : startdivs) {
+        String fail = div.ownText();
+        if (fail.contains("Start")) {
+          startDateTime = div.text();
+          System.out.println(startDateTime);
+          break;
+        } 
+      } 
+      Elements enddivs = document.select("div");
+      for (Element div : enddivs) {
+        String fail = div.ownText();
+        if (fail.contains("End")) {
+          endtDateTime = div.text();
+          System.out.println(endtDateTime);
+          break;
+        } 
+      } 
+      String reportPath = "./reports";
+      PrintWriter writer = new PrintWriter(String.valueOf(String.valueOf(reportPath)) + "/TestResults.txt", "UTF-8");
+      writer.println("PassedCount " + passedCount[0]);
+      writer.println("FailedCount " + failedCount[0]);
+      writer.println(startDateTime);
+      writer.println(endtDateTime);
+      writer.close();
+    } catch (Exception exception) {}
+  }
+  
+  public static void jsClick(By element) {
+    WebElement e = driver.findElement(element);
+    JavascriptExecutor executor = (JavascriptExecutor)driver;
+    executor.executeScript("arguments[0].click();", new Object[] { e });
+  }
+  
+  public static void jsClick(String element) {
+    WebElement e = driver.findElement(By.xpath(element));
+    JavascriptExecutor executor = (JavascriptExecutor)driver;
+    executor.executeScript("arguments[0].click();", new Object[] { e });
+  }
+  
+  public static void sleep(int seconds) throws InterruptedException {
+    Thread.sleep(seconds);
+  }
+  
+  public static void passReport(String message) {
+    logReport(Status.PASS, message, true, driver, true);
+  }
+  
+  public static void failReport(String message) {
+    logReport(Status.FAIL, message, true, driver, true);
+  }
+  
+  public static void scrollTillElement(String element) throws InterruptedException {
+    try {
+      WebElement fr = driver.findElement(By.xpath(element));
+      JavascriptExecutor js = (JavascriptExecutor)driver;
+      js.executeScript("arguments[0].scrollIntoView();", new Object[] { fr });
+    } catch (Exception e) {
+      e.printStackTrace();
+    } 
+  }
+  
+  public static void scrollTillElement(WebElement element) throws InterruptedException {
+    try {
+      JavascriptExecutor js = (JavascriptExecutor)driver;
+      js.executeScript("arguments[0].scrollIntoView();", new Object[] { element });
+    } catch (Exception e) {
+      e.printStackTrace();
+    } 
+  }
+  
+  public static void scrollTillElement(By element) throws InterruptedException {
+    try {
+      WebElement fr = driver.findElement(element);
+      JavascriptExecutor js = (JavascriptExecutor)driver;
+      js.executeScript("arguments[0].scrollIntoView();", new Object[] { fr });
+    } catch (Exception e) {
+      e.printStackTrace();
+    } 
+  }
+  
+  public static void SelectByVisibletext(By xpath, String text) throws InterruptedException {
+    waitforLoadingIconToDissappear();
+    scrollTillElement(xpath);
+    sleep(2000);
+    Select sel = new Select(driver.findElement(xpath));
+    sel.selectByVisibleText(text);
+    sleep(2000);
+    Reporter.log(String.valueOf(text) + " selected");
+  }
+  
+  public static void SelectByValue(By xpath, String value) throws InterruptedException {
+    waitforLoadingIconToDissappear();
+    scrollTillElement(xpath);
+    sleep(2000);
+    Select sel = new Select(driver.findElement(xpath));
+    sel.selectByValue(value);
+    sleep(2000);
+    Reporter.log(String.valueOf(value) + " selected");
+  }
+  
+  public static void doubleClick(By xpath) {
+    Actions actions = new Actions(driver);
+    WebElement element = driver.findElement(xpath);
+    actions.doubleClick(element).build().perform();
+    Reporter.log("Double click success");
+  }
+  
+  public static void rightClick(By xpath) {
+    Actions actions = new Actions(driver);
+    WebElement element = driver.findElement(xpath);
+    actions.contextClick(element).build().perform();
+    Reporter.log("Double click success");
+  }
+  
+  public static void clear(By xpath) throws InterruptedException {
+    driver.findElement(xpath).clear();
+    sleep(1000);
+  }
+  
+  public static void clear(String Xpath) throws InterruptedException {
+    driver.findElement(By.xpath(Xpath)).clear();
+    sleep(1000);
+  }
+  
+  public static String getText(By xpath) {
+    String value = driver.findElement(xpath).getText();
+    return value;
+  }
+  
+  public static String getText(String Xpath) {
+    String value = driver.findElement(By.xpath(Xpath)).getText();
+    return value;
+  }
+  
+  public static String getAttribute(By xpath) {
+    String value = driver.findElement(xpath).getAttribute("value");
+    return value;
+  }
+  
+  public static void isDisplayed(By xPath, String value) {
+    if (driver.findElement(xPath).isDisplayed()) {
+      passReport(String.valueOf(value) + " is displayed");
+    } else {
+      failReport(xPath + " is not displayed");
+    } 
+  }
+  
+  public static void isEnabled(By xPath, String value) {
+    if (driver.findElement(xPath).isEnabled()) {
+      passReport(String.valueOf(value) + " is Enabled");
+    } else {
+      failReport(xPath + " is not Enabled");
+    } 
+  }
+  
+  public static void isSelected(By xPath, String value) {
+    if (driver.findElement(xPath).isSelected()) {
+      passReport(String.valueOf(value) + " is Selected ");
+    } else {
+      failReport(xPath + " is not Selected");
+    } 
+  }
+  
+  public static boolean isEnabled(By element) {
+    return driver.findElement(element).isEnabled();
+  }
+  
+  public static boolean isDisplayed(By element) {
+    return driver.findElement(element).isDisplayed();
+  }
+  
+  public static boolean isSelected(By element) {
+    return driver.findElement(element).isSelected();
+  }
+  
+  public static String getProperty(String path, String Property) throws IOException {
+    FileReader reader = new FileReader(path);
+    Properties p = new Properties();
+    p.load(reader);
+    String value = p.getProperty(Property);
+    return value;
+  }
+  
+  public static void waitforLoadingIconToDissappear() throws InterruptedException {
+    List<WebElement> loadElement = driver.findElements(By.xpath("//*[@role='progressbar']"));
+    int count = 0;
+    while (loadElement.size() != 0 && count < 20) {
+      Thread.sleep(1000L);
+      count++;
+    } 
+    System.out.println("waiting for load element to dissapper");
+  }
+  
+  public static void sendKeys(By xpath, String value) {
+    driver.findElement(xpath).sendKeys(new CharSequence[] { value });
+    Reporter.log(String.valueOf(value) + " has entered successfully");
+  }
+  
+  public static void sendKeys(String Xpath, String value) {
+    driver.findElement(By.xpath(Xpath)).sendKeys(new CharSequence[] { value });
+    Reporter.log(String.valueOf(value) + " has entered successfully");
+  }
+  
+  public static void waitUntilElementLoad(WebElement element, int waitSeconds) {
+    Calendar waitTime = Calendar.getInstance();
+    waitTime.add(13, waitSeconds);
+    while (true) {
+      Calendar nowTime = Calendar.getInstance();
+      if (!waitTime.after(nowTime))
+        break; 
+      try {
+        Thread.sleep(1000L);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      } 
+      try {
+        if (element.isDisplayed())
+          break; 
+      } catch (Exception exception) {}
+    } 
+  }
+  
+  public static void click(By element) {
+    try {
+      driver.findElement(element).click();
+    } catch (ElementNotInteractableException e) {
+      scrollToElement(element);
+      driver.findElement(element).click();
+      logReport(Status.PASS, element + " : failed to click element", true, driver, true);
+    } 
+  }
+  
+  public static void click(String element) {
+    try {
+      driver.findElement(By.xpath(element)).click();
+    } catch (ElementNotInteractableException e) {
+      scrollToElement(element);
+      driver.findElement(By.xpath(element)).click();
+      logReport(Status.PASS, String.valueOf(element) + " : failed to click element", true, driver, true);
+    } 
+  }
+  
+  public static void scrollToElement(By element) {
+    try {
+      ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView(true);", new Object[] { driver.findElement(element) });
+    } catch (Exception e) {
+      logReport(Status.PASS, element + " : failed to Sroll till element", true, driver, true);
+    } 
+  }
+  
+  public static void scrollToElement(String element) {
+    try {
+      ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView(true);", new Object[] { driver.findElement(By.xpath(element)) });
+    } catch (Exception e) {
+      logReport(Status.PASS, String.valueOf(element) + " : failed to Sroll till element", true, driver, true);
+    } 
+  }
+  
+  public static void log(String log) {
+    Reporter.log(log);
+  }
+  
+  public static void waitUntilElementLoad(By element, int waitSeconds) {
+    Calendar waitTime = Calendar.getInstance();
+    waitTime.add(13, waitSeconds);
+    while (true) {
+      Calendar nowTime = Calendar.getInstance();
+      if (!waitTime.after(nowTime))
+        break; 
+      try {
+        Thread.sleep(1000L);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      } 
+      try {
+        if (driver.findElement(element).isDisplayed())
+          break; 
+      } catch (Exception exception) {}
+    } 
+  }
+  
+  public static void CloseBrowser() {
+    Assert.fail();
+    driver.quit();
+  }
+  
+  public static void hardPause(int seconds) {
+    try {
+      Thread.sleep((seconds * 1000));
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } 
+  }
+}

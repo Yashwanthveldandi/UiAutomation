@@ -1,0 +1,183 @@
+back up Common class
+
+package com.base;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+import java.util.Random;
+import java.util.TimeZone;
+import org.openqa.selenium.By;
+import org.testng.Assert;
+
+public class Common extends Core {
+  public static int generateNumber(int maxDigits) {
+    long timeSeed = System.nanoTime();
+    double randSeed = Math.random() * 1000.0D;
+    long midSeed = (long)(timeSeed * randSeed);
+    String s = (new StringBuilder(String.valueOf(midSeed))).toString();
+    String subStr = s.substring(0, maxDigits);
+    int finalSeed = Integer.parseInt(subStr);
+    return finalSeed;
+  }
+  
+  public static int getRandomNumber(int max, int min) {
+    return (new Random()).nextInt(max - min + 1) + min;
+  }
+  
+  public static String readProperty(String property) {
+    String value = null;
+    Properties prop = new Properties();
+    InputStream input = null;
+    try {
+      input = new FileInputStream("./src/main/resources/config.properties");
+      prop.load(input);
+      value = prop.getProperty(property);
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } finally {
+      if (input != null)
+        try {
+          input.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }  
+    } 
+    return value;
+  }
+  
+  public static String readProperty(String path, String property) {
+    String value = null;
+    Properties prop = new Properties();
+    InputStream input = null;
+    try {
+      input = new FileInputStream(path);
+      prop.load(input);
+      value = prop.getProperty(property);
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } finally {
+      if (input != null)
+        try {
+          input.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }  
+    } 
+    return value;
+  }
+  
+  public static void writeProperty(String property, String value) {
+    try {
+      FileInputStream in = new FileInputStream("./src/main/resources/config.properties");
+      Properties props = new Properties();
+      props.load(in);
+      in.close();
+      FileOutputStream out = new FileOutputStream("./src/main/resources/config.properties");
+      props.setProperty(property, value);
+      props.store(out, (String)null);
+      out.close();
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } 
+  }
+  
+  public static void writeProperty(String path, String property, String value) {
+    try {
+      FileInputStream in = new FileInputStream(path);
+      Properties props = new Properties();
+      props.load(in);
+      in.close();
+      FileOutputStream out = new FileOutputStream(path);
+      props.setProperty(property, value);
+      props.store(out, (String)null);
+      out.close();
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } 
+  }
+  
+  public static void switchTabAndCloseCurrent(int waitTabCount, int waitSeconds) {
+    ArrayList<String> tabs = null;
+    boolean tabFound = false;
+    for (int ite = 0; ite < waitSeconds; ite++) {
+      tabs = new ArrayList<>(driver.getWindowHandles());
+      if (tabs.size() == waitTabCount) {
+        tabFound = true;
+        break;
+      } 
+      try {
+        Thread.sleep(1000L);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      } 
+    } 
+    if (!tabFound)
+      Assert.fail("Only one tab is prescent at the moment"); 
+    driver.close();
+    driver.switchTo().window(tabs.get(1));
+  }
+  
+  public static String getTodaysDate(String format) {
+    Date now = new Date();
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(now);
+    SimpleDateFormat sdf = new SimpleDateFormat(format);
+    return sdf.format(now);
+  }
+  
+  public static String getAdjustedDate(String format, int addOrSubsDays) {
+    SimpleDateFormat sdf = new SimpleDateFormat(format);
+    Date currentDate = new Date();
+    Calendar c = Calendar.getInstance();
+    c.setTime(currentDate);
+    c.add(5, addOrSubsDays);
+    Date currentDatePlusOne = c.getTime();
+    return sdf.format(currentDatePlusOne);
+  }
+  
+  public static String getUserNameAndRole(boolean paramBoolean, By paramBy1, By paramBy2, By paramBy3, By paramBy4) {
+    throw new Error("Unresolved compilation problems: \n\tThe method getElementsCount(By) is undefined for the type Common\n\tThe method getAttributeValue(By, String) is undefined for the type Common\n\tThe method getElementsCount(By) is undefined for the type Common\n");
+  }
+  
+  public static List<String> dateConvert() throws ParseException {
+    ArrayList<String> getCreatedTime = new ArrayList<>();
+    Calendar calendar = Calendar.getInstance();
+    String DATE_FORMAT = "dd/MMM/yyyy HH:mm";
+    SimpleDateFormat formatter = new SimpleDateFormat(DATE_FORMAT);
+    Date date1 = new Date();
+    Date date = formatter.parse(formatter.format(date1));
+    calendar.add(12, -1);
+    Date date2 = formatter.parse(formatter.format(calendar.getTime()));
+    calendar.add(12, 2);
+    Date date3 = formatter.parse(formatter.format(calendar.getTime()));
+    SimpleDateFormat UK = new SimpleDateFormat(DATE_FORMAT);
+    TimeZone tzInLondon = TimeZone.getTimeZone("Europe/London");
+    UK.setTimeZone(tzInLondon);
+    String sDateUK = UK.format(date);
+    String subTractDateUK = UK.format(date2);
+    String addTractDateUK = UK.format(date3);
+    getCreatedTime.add(sDateUK);
+    getCreatedTime.add(subTractDateUK);
+    getCreatedTime.add(addTractDateUK);
+    return getCreatedTime;
+  }
+  
+  public static String extractTextFromCopyElement(By paramBy) {
+    throw new Error("Unresolved compilation problem: \n\tThe method clickWithoutScroll(By) is undefined for the type Common\n");
+  }
+  
+  public static void getCurrentBuildNo() {
+    String reportPath = "http://10.52.210.82:61006/jenkins/job/OR-HUD-Automation/" + System.getenv("BUILD_NUMBER") + 
+      "/execution/node/3/ws/reports/ExecutionReport/extent.html";
+    writeProperty("./test-output/CurrentBuildNo.properties", "ReportPath", reportPath);
+  }
+}
