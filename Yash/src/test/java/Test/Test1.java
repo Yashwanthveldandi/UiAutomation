@@ -3,41 +3,34 @@ package Test;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
-import com.pages.CommonMethods;
+import com.base.Utility;
 
-public class Test1 extends CommonMethods{
-	
-	@BeforeSuite
-	public void generateReport()
-	{
-		createReport();
-	}
-	
+public class Test1 extends Utility{
+		
 	@BeforeMethod
 	public void beforeMethod()
 	{
-		generateReports("first Test");
 		openDriver();
 		
 	}
 	
-	@Test
+	@Test(description="Test1")
 	public void firstTest()
 
 	{
-		openSeleniumpage();
+		getDriver().get("https://www.google.com/");
 	}
 	
 	@AfterMethod
 	public void closeDriver(ITestResult result)
 	{
-		endOfTest(result, driver);
-		if(driver!=null)
+		endOfTest(result, getDriver());//need to comment it while running only single test
+		if(getDriver()!=null)
 		{
-			driver.quit();
+			getDriver().quit();
+			unload();
 		}
 	}
 	

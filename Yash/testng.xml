@@ -1,5 +1,16 @@
-<suite name="Suite">
-	<test thread-count="2" name="test">
+<suite name="Suite" parallel="tests" thread-count="2" verbose="1">
+
+<Listners>
+<Listner class-name="com.base.Listners"/>
+</Listners>
+
+	<test name="test1">
+		<classes>
+			<class name="Test.Test1" />
+		</classes>
+	</test>
+	
+	<test name="test2">
 		<classes>
 			<class name="Test.Test1" />
 		</classes>
